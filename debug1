@@ -18,3 +18,7 @@ int main(void)
     return 0;
     
 }
+
+result:
+    scanf("%f, &weight")>>sacnf("%f",&weight)
+    引号错误导致未读取到输入值
