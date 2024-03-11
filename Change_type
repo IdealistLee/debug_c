@@ -1,0 +1,15 @@
+#include <stdio.h>
+/*这是一个转换ASCII为字符的程序*/
+int main(void)
+{
+    int f;
+
+    printf("please input a numer:");
+    scanf("%d",&f);
+    printf("The value is %c",&f);
+
+    getchar();
+    getchar();
+
+    return 0;
+}
