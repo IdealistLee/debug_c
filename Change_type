@@ -13,3 +13,7 @@ int main(void)
 
     return 0;
 }
+
+printf("The value is %c",&f);  >> printf("The value is %c",f)
+注:&f是取用地址，f是打印变量
+
