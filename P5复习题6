@@ -1,0 +1,15 @@
+#include <stdio.h>
+#define FORMAR "%s! C is cool!\n"
+int main(void)
+{
+    int num = 10;
+    printf(FORMAR,FORMAR);
+    printf("%d\n",++num);
+    printf("%d\n",num++);
+    printf("%d\n",num--);
+    printf("%d\n",num);
+
+    fflush(stdout);
+    getchar();
+    return 0;
+}
