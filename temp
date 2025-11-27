@@ -1,1 +1,21 @@
 
+给我一个处理txt文本的脚本程序，文本内容的形式如下：
+*AMPLITUDE, NAME =common_steel13@10017_r1, DEFINITION = TABULAR
+0.0       ,0.0
+0.252158  ,-0.0031953
+0.252158  ,-0.0031953
+*AMPLITUDE, NAME =common_steel13@10017_r1_1, DEFINITION = TABULAR
+0.0       ,0.0
+0.252158  ,-0.0031953
+0.252158  ,-0.0031953
+是以*AMPLITUDE,开头，后面跟着数字，如果*AMPLITUDE这一行的结尾是_1, DEFINITION = TABULAR，把后面的所有数字的第一项加10.001。
+处理之后的文本应该如下：
+*AMPLITUDE, NAME =common_steel13@10017_r1, DEFINITION = TABULAR
+0.0       ,0.0
+0.252158  ,-0.0031953
+0.252158  ,-0.0031953
+*AMPLITUDE, NAME =common_steel13@10017_r1_1, DEFINITION = TABULAR
+10.001000,       0.000000
+10.253158,      -0.003195
+10.253158,      -0.003195
+给我对应可用的代码，并告诉我如何使用，要详细且正确。你应该测试你的代码。
