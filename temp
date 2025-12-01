@@ -1,26 +1,3 @@
-
-给我一个处理txt文本的脚本程序，文本内容的形式如下：
-*AMPLITUDE, NAME =common_steel13@10017_r1, DEFINITION = TABULAR
-0.0       ,0.0
-0.252158  ,-0.0031953
-0.252158  ,-0.0031953
-*AMPLITUDE, NAME =common_steel13@10017_r1_1, DEFINITION = TABULAR
-0.0       ,0.0
-0.252158  ,-0.0031953
-0.252158  ,-0.0031953
-是以*AMPLITUDE,开头，后面跟着数字，如果*AMPLITUDE这一行的结尾是_1, DEFINITION = TABULAR，把后面的所有数字的第一项加10.001。
-处理之后的文本应该如下：
-*AMPLITUDE, NAME =common_steel13@10017_r1, DEFINITION = TABULAR
-0.0       ,0.0
-0.252158  ,-0.0031953
-0.252158  ,-0.0031953
-*AMPLITUDE, NAME =common_steel13@10017_r1_1, DEFINITION = TABULAR
-10.001000,       0.000000
-10.253158,      -0.003195
-10.253158,      -0.003195
-给我对应可用的代码，并告诉我如何使用，要详细且正确。你应该测试你的代码。
-
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -30,6 +7,75 @@ import sys
 def process_amplitude_file(input_file, output_file):
     """
     处理AMPLITUDE文本文件
+    只修改数字部分，其他格式保持不变
+    """
+    try:
+        with open(input_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except FileNotFoundError:
+        print(f"错误：找不到输入文件 '{input_file}'")
+        return False
+    except Exception as e:
+        print(f"读取文件时出错：{e}")
+        return False
+    
+    # 使用正则表达式匹配和处理
+    pattern = r'(\*AMPLITUDE[^\n]*_1, DEFINITION = TABULAR\s*)((?:[0-9.-][^\n]*\s*)*)'
+    
+    def replace_numbers(match):
+        header = match.group(1)  # 保持头部不变
+        data_lines = match.group(2).strip().split('\n')
+        
+        processed_lines = []
+        for line in data_lines:
+            line = line.strip()
+            if not line or line.startswith('*'):
+                processed_lines.append(line)
+                continue
+                
+            # 分割逗号前后的部分
+            parts = line.split(',', 1)
+            if len(parts) == 2:
+                try:
+                    # 只修改第一个数字，保持原有格式
+                    first_num = float(parts[0].strip())
+                    first_num += 10.001
+                    
+                    # 保持原有格式，只替换数字
+                    # 使用原有空格和格式
+                    first_part = parts[0].rstrip()
+                    # 找到数字前的空格
+                    num_match = re.search(r'(-?\d+\.?\d*)', first_part)
+                    if num_match:
+                        # 替换数字部分，保持原有格式
+                        new_first_part = first_part.replace(num_match.group(1), f"{first_num:.6f}")
+                        processed_lines.append(new_first_part + ',' + parts[1])
+                    else:
+                        # 如果没有找到数字，使用默认格式
+                        processed_lines.append(f"{first_num:10.6f} ,{parts[1]}")
+                except ValueError:
+                    processed_lines.append(line)
+            else:
+                processed_lines.append(line)
+        
+        return header + '\n'.join(processed_lines) + ('\n' if data_lines else '')
+    
+    # 应用替换
+    processed_content = re.sub(pattern, replace_numbers, content, flags=re.DOTALL)
+    
+    # 写入输出文件
+    try:
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(processed_content)
+        print(f"处理完成！输出文件：{output_file}")
+        return True
+    except Exception as e:
+        print(f"写入文件时出错：{e}")
+        return False
+
+def process_amplitude_file_improved(input_file, output_file):
+    """
+    改进版本：更精确地保持原始格式
     """
     try:
         with open(input_file, 'r', encoding='utf-8') as f:
@@ -44,51 +90,54 @@ def process_amplitude_file(input_file, output_file):
     processed_lines = []
     i = 0
     n = len(lines)
+    in_target_block = False
     
     while i < n:
-        line = lines[i].strip()
+        line = lines[i]
         
         # 检查是否是AMPLITUDE行
         if line.startswith('*AMPLITUDE'):
             # 检查是否以"_1, DEFINITION = TABULAR"结尾
-            if line.endswith('_1, DEFINITION = TABULAR'):
-                processed_lines.append(lines[i])  # 保留原始行
-                i += 1
-                
-                # 处理后续的数据行
-                while i < n and not lines[i].startswith('*AMPLITUDE'):
-                    data_line = lines[i].strip()
-                    if data_line and not data_line.startswith('*'):
-                        # 分割数据
-                        parts = data_line.split(',')
-                        if len(parts) >= 2:
-                            try:
-                                # 提取第一个数字并加上10.001
-                                first_num = float(parts[0].strip())
-                                first_num += 10.001
-                                
-                                # 提取第二个数字
-                                second_num = float(parts[1].strip())
-                                
-                                # 格式化输出
-                                formatted_line = f"{first_num:10.6f}, {second_num:15.6f}\n"
-                                processed_lines.append(formatted_line)
-                            except ValueError:
-                                # 如果转换失败，保留原始行
-                                processed_lines.append(lines[i])
-                        else:
-                            processed_lines.append(lines[i])
-                    else:
-                        processed_lines.append(lines[i])
-                    i += 1
+            if '_1, DEFINITION = TABULAR' in line:
+                in_target_block = True
             else:
-                # 不以"_1"结尾的AMPLITUDE块，原样保留
-                processed_lines.append(lines[i])
-                i += 1
-        else:
-            # 非AMPLITUDE行，原样保留
-            processed_lines.append(lines[i])
+                in_target_block = False
+            
+            processed_lines.append(line)
             i += 1
+            continue
+        
+        # 如果在目标块中且是数据行
+        if in_target_block and not line.startswith('*') and line.strip():
+            # 尝试解析数据行
+            parts = line.split(',', 1)
+            if len(parts) == 2:
+                # 提取第一个数字
+                first_part = parts[0].strip()
+                try:
+                    first_num = float(first_part)
+                    first_num += 10.001
+                    
+                    # 保持原始格式，只替换数字
+                    # 找到数字在字符串中的位置
+                    num_match = re.search(r'(-?\d+\.?\d*)', parts[0])
+                    if num_match:
+                        # 替换数字，保持原有空格
+                        start, end = num_match.span()
+                        new_first_part = parts[0][:start] + f"{first_num:.6f}" + parts[0][end:]
+                        processed_lines.append(new_first_part + ',' + parts[1])
+                    else:
+                        # 如果没有匹配到数字格式，使用默认处理
+                        processed_lines.append(f"{first_num:10.6f} ,{parts[1]}")
+                except ValueError:
+                    # 如果转换失败，保留原行
+                    processed_lines.append(line)
+            else:
+                processed_lines.append(line)
+        else:
+            processed_lines.append(line)
+        
+        i += 1
     
     # 写入输出文件
     try:
@@ -100,48 +149,6 @@ def process_amplitude_file(input_file, output_file):
         print(f"写入文件时出错：{e}")
         return False
 
-def process_single_file():
-    """
-    处理单个文件
-    """
-    input_file = input("请输入输入文件名（例如：input.txt）: ").strip()
-    output_file = input("请输入输出文件名（例如：output.txt）: ").strip()
-    
-    if not input_file or not output_file:
-        print("文件名不能为空！")
-        return
-    
-    process_amplitude_file(input_file, output_file)
-
-def batch_process_files():
-    """
-    批量处理文件
-    """
-    import os
-    import glob
-    
-    file_pattern = input("请输入文件匹配模式（例如：*.txt 或 input_*.txt）: ").strip()
-    files = glob.glob(file_pattern)
-    
-    if not files:
-        print("没有找到匹配的文件！")
-        return
-    
-    print(f"找到 {len(files)} 个文件：")
-    for i, file in enumerate(files, 1):
-        print(f"{i}. {file}")
-    
-    output_dir = input("请输入输出目录（留空则使用输入文件所在目录）: ").strip()
-    if not output_dir:
-        output_dir = os.path.dirname(files[0]) if files else "."
-    
-    for input_file in files:
-        filename = os.path.basename(input_file)
-        output_file = os.path.join(output_dir, f"processed_{filename}")
-        
-        print(f"处理文件: {input_file} -> {output_file}")
-        process_amplitude_file(input_file, output_file)
-
 def main():
     """
     主函数
@@ -150,120 +157,4 @@ def main():
     print("AMPLITUDE文本处理工具")
     print("=" * 50)
     print("功能：处理以*AMPLITUDE开头的文本文件")
-    print("对于以'_1, DEFINITION = TABULAR'结尾的块，")
-    print("将其后的所有数据行的第一个数字加10.001")
-    print("=" * 50)
-    
-    while True:
-        print("\n请选择操作：")
-        print("1. 处理单个文件")
-        print("2. 批量处理文件")
-        print("3. 退出")
-        
-        choice = input("请输入选择 (1-3): ").strip()
-        
-        if choice == '1':
-            process_single_file()
-        elif choice == '2':
-            batch_process_files()
-        elif choice == '3':
-            print("谢谢使用！")
-            break
-        else:
-            print("无效选择，请重新输入！")
-
-# 直接处理文件的函数（命令行使用）
-def process_file_directly(input_file, output_file):
-    """
-    直接处理文件，适合在脚本中调用
-    """
-    return process_amplitude_file(input_file, output_file)
-
-if __name__ == "__main__":
-    # 如果通过命令行参数调用
-    if len(sys.argv) == 3:
-        input_file = sys.argv[1]
-        output_file = sys.argv[2]
-        process_file_directly(input_file, output_file)
-    else:
-        main()
-def process_amplitude_file(input_file_path, output_file_path):
-    """
-    处理TXT文本中的AMPLITUDE数据：
-    - 识别结尾为_1, DEFINITION = TABULAR的AMPLITUDE块
-    - 该块后续数字行的第一项加10.001
-    - 保留原始格式，数值统一保留6位小数
-    
-    参数：
-    input_file_path: 输入文件的完整路径（如"C:/data/input.txt"或"/home/user/input.txt"）
-    output_file_path: 输出文件的完整路径（如"C:/data/output.txt"或"/home/user/output.txt"）
-    """
-    import os
-    
-    # 验证输入文件是否存在
-    if not os.path.exists(input_file_path):
-        raise FileNotFoundError(f"输入文件不存在：{input_file_path}")
-    
-    # 标记是否需要处理当前数字块（找到目标AMPLITUDE行后激活）
-    need_add = False
-    processed_lines = []
-    
-    with open(input_file_path, 'r', encoding='utf-8') as f_in:
-        for line in f_in:
-            line_stripped = line.strip()  # 去除首尾空白（避免换行符/空格干扰）
-            
-            # 1. 检测是否为目标AMPLITUDE行
-            if line_stripped.startswith('*AMPLITUDE,') and line_stripped.endswith('_1, DEFINITION = TABULAR'):
-                need_add = True
-                processed_lines.append(line)  # 保留原始AMPLITUDE行
-                continue
-            
-            # 2. 检测是否为下一个AMPLITUDE行（结束当前处理块）
-            if line_stripped.startswith('*AMPLITUDE,') and not line_stripped.endswith('_1, DEFINITION = TABULAR'):
-                need_add = False
-                processed_lines.append(line)
-                continue
-            
-            # 3. 处理数字行（仅当need_add为True时）
-            if need_add and line_stripped != '':  # 跳过空行
-                # 分割逗号分隔的数值（处理前后可能的空格）
-                parts = [p.strip() for p in line_stripped.split(',')]
-                if len(parts) >= 2:  # 确保有两个数值项
-                    try:
-                        # 第一项加10.001，保留6位小数
-                        first_val = float(parts[0]) + 10.001
-                        second_val = float(parts[1])
-                        # 格式化输出（对齐原始格式，6位小数）
-                        processed_line = f"{first_val:.6f},{second_val:>12.6f}\n"
-                        processed_lines.append(processed_line)
-                    except ValueError:
-                        # 若数值转换失败，保留原始行（避免程序崩溃）
-                        processed_lines.append(line)
-                else:
-                    processed_lines.append(line)
-            else:
-                # 不需要处理的行，直接保留原始内容
-                processed_lines.append(line)
-    
-    # 写入输出文件
-    with open(output_file_path, 'w', encoding='utf-8') as f_out:
-        f_out.writelines(processed_lines)
-    
-    print(f"处理完成！\n输入文件：{input_file_path}\n输出文件：{output_file_path}")
-
-
-# ------------------- 执行入口（用户需修改这里的文件路径）-------------------
-if __name__ == "__main__":
-    # 示例：Windows系统路径（注意用反斜杠\\或正斜杠/）
-    INPUT_FILE = "C:/Users/YourName/Documents/input.txt"
-    OUTPUT_FILE = "C:/Users/YourName/Documents/output.txt"
-    
-    # 示例：Mac/Linux系统路径
-    # INPUT_FILE = "/Users/YourName/Documents/input.txt"
-    # OUTPUT_FILE = "/Users/YourName/Documents/output.txt"
-    
-    # 调用函数处理文件
-    try:
-        process_amplitude_file(INPUT_FILE, OUTPUT_FILE)
-    except Exception as e:
-        print(f"处理失败：{str(e)}")
+    print("对于以'_1, DEFI
