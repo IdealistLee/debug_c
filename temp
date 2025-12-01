@@ -157,4 +157,29 @@ def main():
     print("AMPLITUDE文本处理工具")
     print("=" * 50)
     print("功能：处理以*AMPLITUDE开头的文本文件")
-    print("对于以'_1, DEFI
+    print("对于以'_1, DEFINITION = TABULAR'结尾的块，")
+    print("将其后的所有数据行的第一个数字加10.001")
+    print("并尽量保持原始格式")
+    print("=" * 50)
+    
+    if len(sys.argv) == 3:
+        # 命令行参数模式
+        input_file = sys.argv[1]
+        output_file = sys.argv[2]
+        process_amplitude_file_improved(input_file, output_file)
+    else:
+        # 交互模式
+        input_file = input("请输入输入文件名（例如：input.txt）: ").strip()
+        if not input_file:
+            print("文件名不能为空！")
+            return
+        
+        output_file = input("请输入输出文件名（例如：output.txt）: ").strip()
+        if not output_file:
+            print("文件名不能为空！")
+            return
+        
+        process_amplitude_file_improved(input_file, output_file)
+
+if __name__ == "__main__":
+    main()
