@@ -5,3 +5,123 @@
 5. 保持结构：保持其他列（A列和D列）的数据不变
 6. 保存结果：将处理后的数据保存到新的CSV文件
 给我一个实现功能的程序。
+import pandas as pd
+import ast
+from collections import OrderedDict
+import numpy as np
+
+def parse_string_list(value):
+    """将字符串列表解析为Python列表"""
+    if isinstance(value, str) and value.startswith('[') and value.endswith(']'):
+        try:
+            # 使用ast安全地解析字符串列表
+            parsed_list = ast.literal_eval(value)
+            if isinstance(parsed_list, list):
+                return parsed_list
+        except (ValueError, SyntaxError):
+            pass
+    return [value] if pd.notna(value) else []
+
+def remove_duplicates_keep_order(lst):
+    """去除列表中的重复元素，保持原始顺序"""
+    if not isinstance(lst, list):
+        return lst
+    
+    # 使用OrderedDict来去重并保持顺序
+    return list(OrderedDict.fromkeys(lst))
+
+def process_csv(input_file, output_file):
+    """
+    处理CSV文件的主要函数
+    
+    参数:
+    input_file: 输入CSV文件路径
+    output_file: 输出CSV文件路径
+    """
+    try:
+        # 1. 读取CSV文件
+        df = pd.read_csv(input_file)
+        print(f"成功读取文件: {input_file}")
+        print(f"原始数据形状: {df.shape}")
+        print("\n原始数据前几行:")
+        print(df.head())
+        
+        # 2. 解析B列和C列的字符串列表
+        for col in ['B', 'C']:
+            if col in df.columns:
+                df[col] = df[col].apply(parse_string_list)
+                print(f"已解析{col}列")
+            else:
+                print(f"警告: 数据集中没有{col}列")
+        
+        # 3. 对每个列表去除重复元素，同时保持原始顺序
+        for col in ['B', 'C']:
+            if col in df.columns:
+                df[col] = df[col].apply(remove_duplicates_keep_order)
+                print(f"已对{col}列去重")
+        
+        # 4. 拆分行：将列表的每个元素拆分成单独的行
+        # 记录原始行索引，以便追踪
+        df['original_index'] = df.index
+        
+        # 拆分行，保持其他列不变
+        exploded_rows = []
+        
+        for idx, row in df.iterrows():
+            # 获取B列和C列的列表长度
+            b_list = row['B'] if 'B' in df.columns and isinstance(row['B'], list) else []
+            c_list = row['C'] if 'C' in df.columns and isinstance(row['C'], list) else []
+            
+            # 确定最大长度，以便对齐
+            max_len = max(len(b_list), len(c_list))
+            
+            # 为每个元素创建新行
+            for i in range(max_len):
+                new_row = row.copy()
+                
+                # 处理B列
+                if 'B' in df.columns:
+                    new_row['B'] = b_list[i] if i < len(b_list) else np.nan
+                
+                # 处理C列
+                if 'C' in df.columns:
+                    new_row['C'] = c_list[i] if i < len(c_list) else np.nan
+                
+                # 添加元素索引
+                new_row['element_index'] = i
+                
+                exploded_rows.append(new_row)
+        
+        # 创建新的DataFrame
+        result_df = pd.DataFrame(exploded_rows)
+        
+        # 重新排列列的顺序，将辅助列放在最后
+        cols = [col for col in result_df.columns if col not in ['original_index', 'element_index']]
+        cols.extend(['original_index', 'element_index'])
+        result_df = result_df[cols]
+        
+        print(f"\n处理后的数据形状: {result_df.shape}")
+        print("\n处理后的数据前几行:")
+        print(result_df.head())
+        
+        # 6. 保存结果到新的CSV文件
+        result_df.to_csv(output_file, index=False)
+        print(f"\n结果已保存到: {output_file}")
+        print(f"处理完成!")
+        
+        return result_df
+        
+    except FileNotFoundError:
+        print(f"错误: 找不到文件 {input_file}")
+    except Exception as e:
+        print(f"处理过程中发生错误: {str(e)}")
+        raise
+
+# 示例使用
+if __name__ == "__main__":
+    # 设置文件路径
+    input_csv = "input.csv"  # 替换为您的输入文件路径
+    output_csv = "output.csv"  # 替换为您的输出文件路径
+    
+    # 运行处理函数
+    result = process_csv(input_csv, output_csv)
