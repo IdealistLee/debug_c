@@ -125,3 +125,17 @@ if __name__ == "__main__":
     
     # 运行处理函数
     result = process_csv(input_csv, output_csv)
+
+PS C:\Users\l60033757> & C:/Users/l60033757/AppData/Local/Programs/Python/Python312/python.exe d:/Temp/1215/csv.py
+Traceback (most recent call last):
+  File "d:\Temp\1215\csv.py", line 1, in <module>
+    import pandas as pd
+  File "C:\Users\l60033757\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\__init__.py", line 62, in <module>
+    from pandas.core.api import (
+  File "C:\Users\l60033757\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\api.py", line 28, in <module>
+    from pandas.core.arrays import Categorical
+  File "C:\Users\l60033757\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\arrays\__init__.py", line 8, in <module>
+    from pandas.core.arrays.categorical import Categorical
+  File "C:\Users\l60033757\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\arrays\categorical.py", line 3, in <module>
+    from csv import QUOTE_NONNUMERIC
+ImportError: cannot import name 'QUOTE_NONNUMERIC' from 'csv' (d:\Temp\1215\csv.py)
