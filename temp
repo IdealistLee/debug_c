@@ -1,148 +1,67 @@
-1. 读取CSV文件：使用pandas读取CSV文件
-2. 解析列表：将B列和C列中的字符串列表（如"[xx,xx,xx]"）解析为Python列表
-3. 去除重复：对每个列表去除重复元素，同时保持原始顺序
-4. 拆分行：将列表的每个元素拆分成单独的行
-5. 保持结构：保持其他列（A列和D列）的数据不变
-6. 保存结果：将处理后的数据保存到新的CSV文件
-给我一个实现功能的程序。
-import pandas as pd
+import csv
 import ast
-from collections import OrderedDict
-import numpy as np
-
-def parse_string_list(value):
-    """将字符串列表解析为Python列表"""
-    if isinstance(value, str) and value.startswith('[') and value.endswith(']'):
-        try:
-            # 使用ast安全地解析字符串列表
-            parsed_list = ast.literal_eval(value)
-            if isinstance(parsed_list, list):
-                return parsed_list
-        except (ValueError, SyntaxError):
-            pass
-    return [value] if pd.notna(value) else []
-
-def remove_duplicates_keep_order(lst):
-    """去除列表中的重复元素，保持原始顺序"""
-    if not isinstance(lst, list):
-        return lst
-    
-    # 使用OrderedDict来去重并保持顺序
-    return list(OrderedDict.fromkeys(lst))
 
 def process_csv(input_file, output_file):
-    """
-    处理CSV文件的主要函数
-    
-    参数:
-    input_file: 输入CSV文件路径
-    output_file: 输出CSV文件路径
-    """
-    try:
-        # 1. 读取CSV文件
-        df = pd.read_csv(input_file)
-        print(f"成功读取文件: {input_file}")
-        print(f"原始数据形状: {df.shape}")
-        print("\n原始数据前几行:")
-        print(df.head())
+    """处理CSV文件，根据C列元素的elemset:内容去重"""
+    with open(input_file, 'r', encoding='utf-8') as f_in, \
+         open(output_file, 'w', newline='', encoding='utf-8') as f_out:
         
-        # 2. 解析B列和C列的字符串列表
-        for col in ['B', 'C']:
-            if col in df.columns:
-                df[col] = df[col].apply(parse_string_list)
-                print(f"已解析{col}列")
-            else:
-                print(f"警告: 数据集中没有{col}列")
+        reader = csv.reader(f_in)
+        writer = csv.writer(f_out)
         
-        # 3. 对每个列表去除重复元素，同时保持原始顺序
-        for col in ['B', 'C']:
-            if col in df.columns:
-                df[col] = df[col].apply(remove_duplicates_keep_order)
-                print(f"已对{col}列去重")
+        # 写入表头
+        writer.writerow(next(reader))
         
-        # 4. 拆分行：将列表的每个元素拆分成单独的行
-        # 记录原始行索引，以便追踪
-        df['original_index'] = df.index
-        
-        # 拆分行，保持其他列不变
-        exploded_rows = []
-        
-        for idx, row in df.iterrows():
-            # 获取B列和C列的列表长度
-            b_list = row['B'] if 'B' in df.columns and isinstance(row['B'], list) else []
-            c_list = row['C'] if 'C' in df.columns and isinstance(row['C'], list) else []
+        for row in reader:
+            if len(row) < 3:
+                writer.writerow(row)
+                continue
             
-            # 确定最大长度，以便对齐
-            max_len = max(len(b_list), len(c_list))
+            c_value = row[2].strip()
             
-            # 为每个元素创建新行
-            for i in range(max_len):
-                new_row = row.copy()
+            if not c_value or c_value == '[]':
+                row[2] = ""
+                writer.writerow(row)
+                continue
+            
+            try:
+                # 解析列表
+                items = ast.literal_eval(c_value)
+                if not isinstance(items, list):
+                    items = [items]
                 
-                # 处理B列
-                if 'B' in df.columns:
-                    new_row['B'] = b_list[i] if i < len(b_list) else np.nan
+                # 根据elemset内容去重
+                seen = set()
+                unique_items = []
                 
-                # 处理C列
-                if 'C' in df.columns:
-                    new_row['C'] = c_list[i] if i < len(c_list) else np.nan
+                for item in items:
+                    item_str = str(item)
+                    # 提取elemset:后面的内容
+                    if "elemset:" in item_str:
+                        key = item_str.split("elemset:", 1)[1].strip()
+                    else:
+                        key = item_str.strip()
+                    
+                    # 如果这个key还没出现过，添加原始元素
+                    if key and key not in seen:
+                        seen.add(key)
+                        unique_items.append(item_str)
                 
-                # 添加元素索引
-                new_row['element_index'] = i
-                
-                exploded_rows.append(new_row)
-        
-        # 创建新的DataFrame
-        result_df = pd.DataFrame(exploded_rows)
-        
-        # 重新排列列的顺序，将辅助列放在最后
-        cols = [col for col in result_df.columns if col not in ['original_index', 'element_index']]
-        cols.extend(['original_index', 'element_index'])
-        result_df = result_df[cols]
-        
-        print(f"\n处理后的数据形状: {result_df.shape}")
-        print("\n处理后的数据前几行:")
-        print(result_df.head())
-        
-        # 6. 保存结果到新的CSV文件
-        result_df.to_csv(output_file, index=False)
-        print(f"\n结果已保存到: {output_file}")
-        print(f"处理完成!")
-        
-        return result_df
-        
-    except FileNotFoundError:
-        print(f"错误: 找不到文件 {input_file}")
-    except Exception as e:
-        print(f"处理过程中发生错误: {str(e)}")
-        raise
-
-# 示例使用
-if __name__ == "__main__":
-    # 设置文件路径
-    input_csv = "input.csv"  # 替换为您的输入文件路径
-    output_csv = "output.csv"  # 替换为您的输出文件路径
+                # 写入结果
+                if not unique_items:
+                    row[2] = ""
+                    writer.writerow(row)
+                else:
+                    for item in unique_items:
+                        new_row = row.copy()
+                        new_row[2] = item
+                        writer.writerow(new_row)
+                        
+            except:
+                # 解析失败，原样写入
+                writer.writerow(row)
     
-    # 运行处理函数
-    result = process_csv(input_csv, output_csv)
+    print(f"处理完成: {output_file}")
 
-PS C:\Users\l60033757> & C:/Users/l60033757/AppData/Local/Programs/Python/Python312/python.exe d:/Temp/1215/csv.py
-Traceback (most recent call last):
-  File "d:\Temp\1215\csv.py", line 1, in <module>
-    import pandas as pd
-  File "C:\Users\l60033757\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\__init__.py", line 62, in <module>
-    from pandas.core.api import (
-  File "C:\Users\l60033757\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\api.py", line 28, in <module>
-    from pandas.core.arrays import Categorical
-  File "C:\Users\l60033757\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\arrays\__init__.py", line 8, in <module>
-    from pandas.core.arrays.categorical import Categorical
-  File "C:\Users\l60033757\AppData\Local\Programs\Python\Python312\Lib\site-packages\pandas\core\arrays\categorical.py", line 3, in <module>
-    from csv import QUOTE_NONNUMERIC
-ImportError: cannot import name 'QUOTE_NONNUMERIC' from 'csv' (d:\Temp\1215\csv.py)
-
-proc_id,Divergent node,Divergent element,cae path
-2463162,['Divergent node local_id 6430238 inp_id 11309567.'],"['Divergent element C3D10M, local_id 8210919, inp_id 379644, elemset: a_cover_lens_spot_3_glue@30649_m,', 'Divergent element C3D10M, local_id 8210927, inp_id 380192, elemset: a_cover_lens_spot_3_glue@30649_m,', 'Divergent element C3D10M, local_id 8210955, inp_id 381048, elemset: a_cover_lens_spot_3_glue@30649_m,', 'Divergent element C3D10M, local_id 8210963, inp_id 381117, elemset: a_cover_lens_spot_3_glue@30649_m,', 'Divergent element C3D10M, local_id 8211020, inp_id 382315, elemset: a_cover_lens_spot_3_glue@30649_m,']",['open /ceph/proc/2463162/result/Malena_CDP_10_custom_0m7_155_0_315.cae success!']
-2463163,"['Divergent node local_id 11021591 inp_id 2016020.', 'Divergent node local_id 11021593 inp_id 2019400.', 'Divergent node local_id 11021594 inp_id 2019402.', 'Divergent node local_id 11021606 inp_id 2016018.', 'Divergent node local_id 11021608 inp_id 2019399.', 'Divergent node local_id 11021617 inp_id 2019398.']","['Divergent element C3D10M, local_id 8819594, inp_id 6102666, elemset: common_rubber2@20035_m,', 'Divergent element C3D10M, local_id 8819600, inp_id 6102672, elemset: common_rubber2@20035_m,', 'Divergent element C3D10M, local_id 8819601, inp_id 6102673, elemset: common_rubber2@20035_m,', 'Divergent element C3D10M, local_id 8819606, inp_id 6102678, elemset: common_rubber2@20035_m,', 'Divergent element C3D10M, local_id 8819607, inp_id 6102679, elemset: common_rubber2@20035_m,']",['open /ceph/proc/2463163/result/Malena_CDP_10_custom_0m7_155_0_45.cae success!']
-2463164,"['Divergent node local_id 12832790 inp_id 2883195.', 'Divergent node local_id 12832826 inp_id 4136173.']","['Divergent element C3D10M, local_id 9790275, inp_id 6293182, elemset: side_key_rubber@20037_m,', 'Divergent element C3D10M, local_id 9790278, inp_id 6293185, elemset: side_key_rubber@20037_m,', 'Divergent element C3D10M, local_id 9790279, inp_id 6293186, elemset: side_key_rubber@20037_m,', 'Divergent element C3D10M, local_id 9790280, inp_id 6293187, elemset: side_key_rubber@20037_m,', 'Divergent element C3D10M, local_id 9790289, inp_id 6293196, elemset: side_key_rubber@20037_m,', 'Divergent element C3D10M, local_id 9790291, inp_id 6293198, elemset: side_key_rubber@20037_m,', 'Divergent element C3D10M, local_id 9790292, inp_id 6293199, elemset: side_key_rubber@20037_m,']",['open /ceph/proc/2463164/result/Malena_CDP_10_custom_0m7_25_0_315.cae success!']
-2463165,"['Divergent node local_id 11019065 inp_id 2015684.', 'Divergent node local_id 11019069 inp_id 2017738.', 'Divergent node local_id 11019104 inp_id 2017743.', 'Divergent node local_id 11019105 inp_id 2017739.', 'Divergent node local_id 11019106 inp_id 2017736.']","['Divergent element C3D10M, local_id 8817926, inp_id 6101627, elemset: common_rubber2@20035_m,', 'Divergent element C3D10M, local_id 8817927, inp_id 6101628, elemset: common_rubber2@20035_m,', 'Divergent element C3D10M, local_id 8817934, inp_id 6101635, elemset: common_rubber2@20035_m,', 'Divergent element C3D10M, local_id 8817935, inp_id 6101636, elemset: common_rubber2@20035_m,', 'Divergent element C3D10M, local_id 8817941, inp_id 6101642, elemset: common_rubber2@20035_m,', 'Divergent element C3D10M, local_id 8817952, inp_id 6101653, elemset: common_rubber2@20035_m,']",['open /ceph/proc/2463165/result/Malena_CDP_10_custom_0m7_25_0_45.cae success!']
-
+# 使用
+process_csv("input.csv", "output.csv")
