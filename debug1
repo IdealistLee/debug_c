@@ -22,3 +22,22 @@ int main(void)
 result:
     scanf("%f, &weight")>>sacnf("%f",&weight)
     引号错误导致未读取到输入值
+
+给我一个处理json文件的程序，json的组成是这样的；
+{"res_detail": {
+        "2482394": {
+            "proc_id": "2482394",
+            "Divergent node": [
+                "Divergent node local_id 6437137 inp_id 11278748."
+            ],
+            "Divergent element": [
+                "Divergent element C3D8R, local_id 9362605, inp_id 3135119, elemset: foled_4_glue@30201_r,",
+                "Divergent element C3D8R, local_id 9362606, inp_id 3135113, elemset: foled_4_glue@30201_r,",
+                "Divergent element C3D8R, local_id 9362680, inp_id 3135120, elemset: foled_4_glue@30201_r,",
+                "Divergent element C3D8R, local_id 9362685, inp_id 3135114, elemset: foled_4_glue@30201_r,"
+            ],
+            "cae path": [
+                "open /ceph/proc/2482394/result/Skyrim_2d5th_3D_bianli_coating_1213_Run7.cae success!"
+            ]
+        },}
+我只需要proc_id和Divergent element的内容，把Divergent element的内容根据elemset:处理，去除重复值，处理完成后，将prco_id放入a列，divergent的内容放到B列。
